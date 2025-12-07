@@ -1,5 +1,6 @@
+
 import { useState, useEffect, useCallback } from 'react';
-import type { Student, Approval, NewStudent } from '../types';
+import type { Student, Approval, NewStudent, PaymentInfo } from '../types';
 import { format } from 'date-fns';
 import { db } from '../firebase';
 import {
@@ -11,7 +12,8 @@ import {
     updateDoc,
     query,
     writeBatch,
-    orderBy
+    orderBy,
+    arrayUnion
 } from 'firebase/firestore';
 
 const today = new Date();
@@ -42,11 +44,19 @@ export const useStudentData = () => {
     const studentsQuery = query(collection(db, "students"));
     
     const unsubscribeStudents = onSnapshot(studentsQuery, (snapshot) => {
-        const studentsData = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-            isUnpaid: checkUnpaidStatus({ id: doc.id, ...doc.data() } as Student)
-        } as Student));
+        const studentsData = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                // Provide defaults for backward compatibility
+                status: data.status || 'active',
+                canLogin: data.canLogin !== undefined ? data.canLogin : true,
+                role: data.role || 'student',
+                payments: data.payments || [],
+                isUnpaid: checkUnpaidStatus({ id: doc.id, ...data } as Student) // Keep old logic for now, new logic will use feeService
+            } as Student
+        });
         setStudents(studentsData);
         setLoading(false);
     }, (err) => {
@@ -79,8 +89,11 @@ export const useStudentData = () => {
         const studentToAdd = {
             ...newStudentData,
             photoUrl: `https://picsum.photos/seed/${newStudentData.name}/200`,
-            payments: {},
+            payments: [],
             lastPaymentDate: null,
+            role: 'student',
+            status: 'active',
+            canLogin: true,
         };
         await addDoc(collection(db, "students"), studentToAdd);
       } catch (e) {
@@ -98,7 +111,7 @@ export const useStudentData = () => {
     }
   }, []);
 
-  const approvePayment = useCallback(async (studentId: string) => {
+  const approvePayment = useCallback(async (studentId: string, paymentMonth: Date) => {
     const student = students.find(s => s.id === studentId);
     if (!student) {
         console.error("Student not found for payment approval");
@@ -109,12 +122,15 @@ export const useStudentData = () => {
         const todayStr = format(new Date(), 'yyyy-MM-dd');
         const batch = writeBatch(db);
 
-        // 1. Update Student's payment info
+        // 1. Update Student's payment info with the new PaymentInfo structure
         const studentRef = doc(db, "students", studentId);
-        const updatedPayments = { ...student.payments, [todayStr]: student.monthlyFee };
+        const newPayment: PaymentInfo = {
+            month: paymentMonth.getMonth() + 1,
+            year: paymentMonth.getFullYear()
+        };
         batch.update(studentRef, {
-            lastPaymentDate: todayStr,
-            payments: updatedPayments
+            payments: arrayUnion(newPayment),
+            lastPaymentDate: todayStr, // Keep this for quick reference if needed
         });
 
         // 2. Create a new approval record
@@ -135,6 +151,34 @@ export const useStudentData = () => {
     }
   }, [students]);
 
+   const deactivateStudent = async (id: string) => {
+      try {
+        await updateDoc(doc(db, 'students', id), {
+            status: 'inactive',
+            leftDate: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+            canLogin: false,
+        });
+      } catch(e) {
+         console.error("Error deactivating student:", e);
+         setError("Could not deactivate student.");
+      }
+    };
+
+    const reactivateStudent = async (id: string) => {
+        try {
+            await updateDoc(doc(db, 'students', id), {
+                status: 'active',
+                lastRejoinDate: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+                canLogin: true,
+                leftDate: null, // Clear left date upon rejoining
+            });
+        } catch(e) {
+            console.error("Error reactivating student:", e);
+            setError("Could not reactivate student.");
+        }
+    };
+
+
   const updateStudentProfile = useCallback(async (studentId: string, data: { photoUrl: string }) => {
      try {
         await updateDoc(doc(db, "students", studentId), data);
@@ -145,5 +189,5 @@ export const useStudentData = () => {
   }, []);
 
 
-  return { students, approvals, addStudent, approvePayment, removeStudent, updateStudentProfile, loading, error };
+  return { students, approvals, addStudent, approvePayment, removeStudent, updateStudentProfile, deactivateStudent, reactivateStudent, loading, error };
 };

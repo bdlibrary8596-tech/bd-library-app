@@ -1,21 +1,30 @@
 
-export interface Payment {
-  [date: string]: number;
+export interface PaymentInfo {
+  month: number; // 1-12
+  year: number;
 }
 
 export interface Student {
   id: string;
   name: string;
-  mobile: string;
+  phone: string;
+  fatherName?: string;
+  address?: string;
   joinDate: string; // YYYY-MM-DD
   photoUrl: string;
-  payments: Payment;
-  lastPaymentDate: string | null; // YYYY-MM-DD
+  payments: PaymentInfo[];
+  lastPaymentDate: string | null; // YYYY-MM-DD - This can be deprecated or kept for quick reference
   monthlyFee: number;
-  isUnpaid: boolean;
+  role: 'student' | 'admin';
+  
+  // New fields
+  status: 'active' | 'inactive';
+  leftDate?: string; // YYYY-MM-DD
+  lastRejoinDate?: string; // YYYY-MM-DD
+  canLogin: boolean;
 }
 
-export type NewStudent = Omit<Student, 'id' | 'isUnpaid' | 'payments' | 'lastPaymentDate' | 'photoUrl'>
+export type NewStudent = Omit<Student, 'id' | 'isUnpaid' | 'payments' | 'lastPaymentDate' | 'photoUrl' | 'role' | 'status' | 'leftDate' | 'lastRejoinDate' | 'canLogin'> & { name: string; phone: string; monthlyFee: number; joinDate: string; };
 
 export interface Approval {
   id: string;

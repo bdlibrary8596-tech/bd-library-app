@@ -1,21 +1,25 @@
+
 import React, { useState } from 'react';
 import { format } from 'date-fns';
+import type { NewStudent } from '../types';
 
 interface AddStudentFormProps {
-    onSubmit: (data: { name: string; mobile: string; monthlyFee: number; joinDate: string; }) => void;
+    onSubmit: (data: NewStudent) => void;
     onCancel: () => void;
 }
 
 export const AddStudentForm: React.FC<AddStudentFormProps> = ({ onSubmit, onCancel }) => {
     const [name, setName] = useState('');
-    const [mobile, setMobile] = useState('');
+    const [phone, setPhone] = useState('');
+    const [fatherName, setFatherName] = useState('');
+    const [address, setAddress] = useState('');
     const [monthlyFee, setMonthlyFee] = useState(500);
     const [joinDate, setJoinDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (name && mobile && monthlyFee > 0 && joinDate) {
-            onSubmit({ name, mobile, monthlyFee, joinDate });
+        if (name && phone && monthlyFee > 0 && joinDate) {
+            onSubmit({ name, phone, fatherName, address, monthlyFee, joinDate });
         }
     };
 
@@ -26,8 +30,16 @@ export const AddStudentForm: React.FC<AddStudentFormProps> = ({ onSubmit, onCanc
                 <input type="text" id="name" value={name} onChange={(e) => setName(e.target.value)} required className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
             </div>
             <div>
-                <label htmlFor="mobile" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Mobile Number</label>
-                <input type="tel" id="mobile" value={mobile} onChange={(e) => setMobile(e.target.value)} required className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Phone Number</label>
+                <input type="tel" id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} required className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+            </div>
+             <div>
+                <label htmlFor="fatherName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Father's Name (Optional)</label>
+                <input type="text" id="fatherName" value={fatherName} onChange={(e) => setFatherName(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+            </div>
+             <div>
+                <label htmlFor="address" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Address (Optional)</label>
+                <input type="text" id="address" value={address} onChange={(e) => setAddress(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
             </div>
             <div>
                 <label htmlFor="monthlyFee" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Monthly Fee (₹)</label>

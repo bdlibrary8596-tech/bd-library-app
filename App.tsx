@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 import { AdminDashboard } from './components/AdminDashboard';
 import { StudentDashboard } from './components/StudentDashboard';
@@ -14,7 +15,19 @@ const LogoutIcon = () => (
 );
 
 const App: React.FC = () => {
-    const { students, approvals, addStudent, approvePayment, removeStudent, updateStudentProfile, loading, error } = useStudentData();
+    const { 
+        students, 
+        approvals, 
+        addStudent, 
+        approvePayment, 
+        removeStudent, 
+        updateStudentProfile, 
+        deactivateStudent, 
+        reactivateStudent, 
+        loading, 
+        error 
+    } = useStudentData();
+    
     const [userRole, setUserRole] = useState<'admin' | 'student' | null>(null);
     const [currentUser, setCurrentUser] = useState<Student | null>(null);
     const [isAddStudentModalOpen, setAddStudentModalOpen] = useState(false);
@@ -79,6 +92,8 @@ const App: React.FC = () => {
                         onApprovePayment={approvePayment}
                         onRemoveStudent={handleRemoveStudent}
                         onAddStudentClick={() => setAddStudentModalOpen(true)}
+                        onDeactivateStudent={deactivateStudent}
+                        onReactivateStudent={reactivateStudent}
                     />
                 ) : (
                     <StudentDashboard 
