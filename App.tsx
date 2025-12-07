@@ -20,7 +20,7 @@ const App: React.FC = () => {
         approvals, 
         addStudent, 
         approvePayment, 
-        removeStudent, 
+        permanentDeleteStudent, 
         updateStudentProfile, 
         deactivateStudent, 
         reactivateStudent, 
@@ -55,12 +55,6 @@ const App: React.FC = () => {
         setAddStudentModalOpen(false);
     };
     
-    const handleRemoveStudent = (studentId: string) => {
-        if (window.confirm("Are you sure you want to remove this student? This action cannot be undone.")) {
-            removeStudent(studentId);
-        }
-    }
-
     if (!userRole || !currentUser) {
         return <Auth onLogin={handleLogin} students={students} />;
     }
@@ -90,7 +84,7 @@ const App: React.FC = () => {
                         students={students}
                         approvals={approvals}
                         onApprovePayment={approvePayment}
-                        onRemoveStudent={handleRemoveStudent}
+                        onPermanentDeleteStudent={permanentDeleteStudent}
                         onAddStudentClick={() => setAddStudentModalOpen(true)}
                         onDeactivateStudent={deactivateStudent}
                         onReactivateStudent={reactivateStudent}

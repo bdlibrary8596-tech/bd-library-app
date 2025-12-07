@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import type { Student, Approval, NewStudent, PaymentInfo } from '../types';
 import { format } from 'date-fns';
@@ -8,30 +7,15 @@ import {
     onSnapshot,
     addDoc,
     doc,
-    deleteDoc,
     updateDoc,
     query,
     writeBatch,
     orderBy,
-    arrayUnion
+    arrayUnion,
+    where,
+    deleteDoc
 } from 'firebase/firestore';
-
-const today = new Date();
-
-const checkUnpaidStatus = (student: Student): boolean => {
-    if (!student.lastPaymentDate) {
-        // If they have never paid, check against join date
-        const joinDate = new Date(student.joinDate);
-        const diffTime = Math.abs(today.getTime() - joinDate.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return diffDays > 30;
-    }
-    const lastPayment = new Date(student.lastPaymentDate);
-    const diffTime = Math.abs(today.getTime() - lastPayment.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays > 30;
-};
-
+import { normalizePayments } from '../services/feeService';
 
 export const useStudentData = () => {
   const [students, setStudents] = useState<Student[]>([]);
@@ -41,21 +25,30 @@ export const useStudentData = () => {
 
   useEffect(() => {
     setLoading(true);
-    const studentsQuery = query(collection(db, "students"));
+    const studentsQuery = query(collection(db, "students"), where("status", "!=", "deleted"));
     
     const unsubscribeStudents = onSnapshot(studentsQuery, (snapshot) => {
         const studentsData = snapshot.docs.map(doc => {
             const data = doc.data();
-            return {
+            const student: Student = {
                 id: doc.id,
-                ...data,
-                // Provide defaults for backward compatibility
-                status: data.status || 'active',
-                canLogin: data.canLogin !== undefined ? data.canLogin : true,
+                name: data.name,
+                phone: data.phone,
+                fatherName: data.fatherName,
+                address: data.address,
+                joinDate: data.joinDate,
+                photoUrl: data.photoUrl,
+                payments: normalizePayments(data.payments),
+                lastPaymentDate: data.lastPaymentDate,
+                monthlyFee: data.monthlyFee,
                 role: data.role || 'student',
-                payments: data.payments || [],
-                isUnpaid: checkUnpaidStatus({ id: doc.id, ...data } as Student) // Keep old logic for now, new logic will use feeService
-            } as Student
+                status: data.status || 'active',
+                leftDate: data.leftDate,
+                lastRejoinDate: data.lastRejoinDate,
+                canLogin: data.canLogin !== undefined ? data.canLogin : true,
+                softDeleted: data.softDeleted || false, // Ensure softDeleted exists
+            };
+            return student;
         });
         setStudents(studentsData);
         setLoading(false);
@@ -94,6 +87,10 @@ export const useStudentData = () => {
             role: 'student',
             status: 'active',
             canLogin: true,
+            softDeleted: false,
+            dueDay: new Date(newStudentData.joinDate).getDate(),
+            exitDate: null,
+            reactiveAllowed: true
         };
         await addDoc(collection(db, "students"), studentToAdd);
       } catch (e) {
@@ -102,82 +99,110 @@ export const useStudentData = () => {
       }
   }, []);
 
-  const removeStudent = useCallback(async (studentId: string) => {
+  const permanentDeleteStudent = useCallback(async (studentId: string) => {
     try {
         await deleteDoc(doc(db, "students", studentId));
+        setStudents(prev => prev.filter(s => s.id !== studentId));
     } catch (e) {
-        console.error("Error removing student:", e);
-        setError("Could not remove student. Please try again.");
+        console.error("Error permanently deleting student:", e);
+        setError("Could not permanently delete student. Please try again.");
     }
   }, []);
 
-  const approvePayment = useCallback(async (studentId: string, paymentMonth: Date) => {
+  const approvePayment = useCallback(async (studentId: string, paymentMonthDate: Date) => {
     const student = students.find(s => s.id === studentId);
     if (!student) {
-        console.error("Student not found for payment approval");
+        setError("Student not found to process payment.");
         return;
     }
 
-    try {
-        const todayStr = format(new Date(), 'yyyy-MM-dd');
-        const batch = writeBatch(db);
+    const year = paymentMonthDate.getFullYear();
+    const month = paymentMonthDate.getMonth() + 1;
+    const newPayment: PaymentInfo = { year, month };
 
-        // 1. Update Student's payment info with the new PaymentInfo structure
-        const studentRef = doc(db, "students", studentId);
-        const newPayment: PaymentInfo = {
-            month: paymentMonth.getMonth() + 1,
-            year: paymentMonth.getFullYear()
-        };
-        batch.update(studentRef, {
-            payments: arrayUnion(newPayment),
-            lastPaymentDate: todayStr, // Keep this for quick reference if needed
+    const currentPayments = normalizePayments(student.payments);
+    const isAlreadyPaid = currentPayments.some(p => p.year === year && p.month === month);
+
+    if (isAlreadyPaid) {
+        // Optionally provide feedback that it's already paid
+        console.log(`Month ${month}/${year} is already paid for student ${student.name}.`);
+        return; 
+    }
+
+    const updatedPayments = [...currentPayments, newPayment];
+    const studentRef = doc(db, "students", studentId);
+
+    try {
+        // Firestore write
+        await updateDoc(studentRef, {
+            payments: updatedPayments,
+            lastPaymentDate: format(new Date(), 'yyyy-MM-dd'),
         });
 
-        // 2. Create a new approval record
-        const approvalRef = doc(collection(db, "approvals"));
-        const newApproval = {
-            adminId: 'admin1',
-            studentId: student.id,
-            studentName: student.name,
-            amount: student.monthlyFee,
-            date: todayStr,
-        };
-        batch.set(approvalRef, newApproval);
-
-        await batch.commit();
+        // Local state update for immediate UI refresh
+        setStudents(prev => 
+            prev.map(s => 
+                s.id === studentId 
+                    ? { ...s, payments: updatedPayments } 
+                    : s
+            )
+        );
     } catch (e) {
         console.error("Error approving payment:", e);
         setError("Could not approve payment. Please try again.");
     }
   }, [students]);
 
-   const deactivateStudent = async (id: string) => {
+   const deactivateStudent = async (studentId: string) => {
+      const studentRef = doc(db, 'students', studentId);
       try {
-        await updateDoc(doc(db, 'students', id), {
-            status: 'inactive',
-            leftDate: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+        // Firestore write
+        // FIX: Update status to 'softDeleted' to align with UI components and set the leftDate.
+        await updateDoc(studentRef, {
+            status: 'softDeleted',
             canLogin: false,
+            softDeleted: true,
+            leftDate: format(new Date(), 'yyyy-MM-dd'),
         });
+        // Local state update for immediate UI refresh
+        setStudents(prev =>
+            prev.map(s =>
+                s.id === studentId
+                    ? { ...s, status: 'softDeleted', canLogin: false, softDeleted: true, leftDate: format(new Date(), 'yyyy-MM-dd') }
+                    : s
+            )
+        );
       } catch(e) {
          console.error("Error deactivating student:", e);
          setError("Could not deactivate student.");
       }
     };
 
-    const reactivateStudent = async (id: string) => {
+    const reactivateStudent = async (studentId: string) => {
+        const studentRef = doc(db, 'students', studentId);
         try {
-            await updateDoc(doc(db, 'students', id), {
+            // Firestore write
+            // FIX: Clear leftDate and set lastRejoinDate upon reactivation for accurate record-keeping.
+            await updateDoc(studentRef, {
                 status: 'active',
-                lastRejoinDate: new Date().toISOString().split('T')[0], // YYYY-MM-DD
                 canLogin: true,
-                leftDate: null, // Clear left date upon rejoining
+                softDeleted: false,
+                leftDate: null,
+                lastRejoinDate: format(new Date(), 'yyyy-MM-dd'),
             });
+            // Local state update for immediate UI refresh
+            setStudents(prev =>
+                prev.map(s =>
+                    s.id === studentId
+                        ? { ...s, status: 'active', canLogin: true, softDeleted: false, leftDate: null, lastRejoinDate: format(new Date(), 'yyyy-MM-dd') }
+                        : s
+                )
+            );
         } catch(e) {
             console.error("Error reactivating student:", e);
             setError("Could not reactivate student.");
         }
     };
-
 
   const updateStudentProfile = useCallback(async (studentId: string, data: { photoUrl: string }) => {
      try {
@@ -189,5 +214,5 @@ export const useStudentData = () => {
   }, []);
 
 
-  return { students, approvals, addStudent, approvePayment, removeStudent, updateStudentProfile, deactivateStudent, reactivateStudent, loading, error };
+  return { students, approvals, addStudent, approvePayment, permanentDeleteStudent, updateStudentProfile, deactivateStudent, reactivateStudent, loading, error };
 };

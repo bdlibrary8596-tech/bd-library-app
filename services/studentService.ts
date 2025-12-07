@@ -1,23 +1,7 @@
-
 import { db } from '../firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import type { Student } from '../types';
-
-// Helper function to calculate unpaid status, based on the logic from useStudentData.ts
-const checkUnpaidStatus = (studentData: Omit<Student, 'id' | 'isUnpaid'>): boolean => {
-    const today = new Date();
-    if (!studentData.lastPaymentDate) {
-        const joinDate = new Date(studentData.joinDate);
-        const diffTime = Math.abs(today.getTime() - joinDate.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return diffDays > 30;
-    }
-    const lastPayment = new Date(studentData.lastPaymentDate);
-    const diffTime = Math.abs(today.getTime() - lastPayment.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays > 30;
-};
-
+import { normalizePayments } from './feeService';
 
 /**
  * Fetches a single student document from Firestore based on their phone number.
@@ -38,7 +22,8 @@ export const getStudentByPhone = async (phone: string): Promise<Student | null> 
         const studentData = studentDoc.data();
 
         // **New Login Logic Checks**
-        if (studentData.canLogin === false || studentData.status === 'inactive') {
+        // FIX: Also check for 'softDeleted' status to prevent login.
+        if (studentData.canLogin === false || studentData.status === 'inactive' || studentData.status === 'softDeleted') {
             throw new Error("Your account is inactive. Please contact B.D Library admin.");
         }
 
@@ -48,8 +33,7 @@ export const getStudentByPhone = async (phone: string): Promise<Student | null> 
             status: studentData.status || 'active',
             canLogin: studentData.canLogin !== undefined ? studentData.canLogin : true,
             role: studentData.role || 'student',
-            payments: studentData.payments || [],
-            isUnpaid: checkUnpaidStatus(studentData as Omit<Student, 'id' | 'isUnpaid'>)
+            payments: normalizePayments(studentData.payments), // Fix: ensure payments is an array
         } as Student;
         
         return student;

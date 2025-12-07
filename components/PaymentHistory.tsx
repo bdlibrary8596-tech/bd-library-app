@@ -1,15 +1,17 @@
-
 import React from 'react';
 import { format } from 'date-fns';
 import type { PaymentInfo } from '../types';
+import { normalizePayments } from '../services/feeService';
 
 interface PaymentHistoryProps {
-    payments: PaymentInfo[];
+    payments: any; // Accept any type to be robust
 }
 
 export const PaymentHistory: React.FC<PaymentHistoryProps> = ({ payments }) => {
+    const paymentsArray = normalizePayments(payments);
+
     // Sort payments by year, then month, in descending order
-    const sortedPayments = [...payments].sort((a, b) => {
+    const sortedPayments = [...paymentsArray].sort((a, b) => {
         if (a.year !== b.year) {
             return b.year - a.year;
         }

@@ -1,17 +1,15 @@
-
 import React, { useState, useMemo } from 'react';
 import type { Student, Approval } from '../types';
 import { StudentCard } from './StudentCard';
-import { generatePaymentReminder } from '../services/geminiService';
-import { Modal } from './Modal';
-import { format, differenceInDays, isSameMonth, isThisMonth, startOfMonth, endOfMonth } from 'date-fns';
-import { calculateFeeStats } from '../services/feeService';
+import { StudentDetailModal } from './StudentDetailModal';
+import { format, isThisMonth } from 'date-fns';
+import { getStudentFeeStats } from '../services/feeService';
 
 interface AdminDashboardProps {
     students: Student[];
     approvals: Approval[];
     onApprovePayment: (studentId: string, paymentMonth: Date) => void;
-    onRemoveStudent: (studentId: string) => void;
+    onPermanentDeleteStudent: (studentId: string) => void;
     onAddStudentClick: () => void;
     onDeactivateStudent: (studentId: string) => void;
     onReactivateStudent: (studentId: string) => void;
@@ -19,46 +17,42 @@ interface AdminDashboardProps {
 
 type AdminTab = 'all' | 'unpaid' | 'activity' | 'reminders';
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ students, approvals, onApprovePayment, onAddStudentClick, onDeactivateStudent, onReactivateStudent }) => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
+    students, 
+    approvals, 
+    onApprovePayment, 
+    onAddStudentClick, 
+    onDeactivateStudent, 
+    onReactivateStudent,
+    onPermanentDeleteStudent
+}) => {
     const [tab, setTab] = useState<AdminTab>('all');
+    const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
 
     const studentsWithStats = useMemo(() => {
         return students.map(s => ({
             ...s,
-            feeStats: calculateFeeStats(s.joinDate, s.monthlyFee, s.payments, s.status, s.leftDate)
+            feeStats: getStudentFeeStats(s)
         }));
     }, [students]);
-
-    const unpaidStudents = useMemo(() => studentsWithStats.filter(s => s.feeStats.unpaidMonths > 0 && s.status === 'active'), [studentsWithStats]);
+    
+    // Filter out soft-deleted for general unpaid list, but keep them in 'all'
+    const unpaidStudents = useMemo(() => studentsWithStats.filter(s => s.feeStats.unpaidCount > 0 && s.status === 'active'), [studentsWithStats]);
 
     const renderAllStudents = () => (
         <div className="space-y-4">
             {studentsWithStats.map(student => (
-                <StudentCard key={student.id} student={student} showPhone={true}>
-                    <div className="flex gap-2 mt-4">
-                        {student.status === 'active' ? (
-                            <button
-                                onClick={() => onDeactivateStudent(student.id)}
-                                className="flex-1 bg-yellow-500 text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-600 transition"
-                            >
-                                Deactivate
-                            </button>
-                        ) : (
-                             <button
-                                onClick={() => onReactivateStudent(student.id)}
-                                className="flex-1 bg-green-500 text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-green-600 transition"
-                            >
-                                Reactivate
-                            </button>
-                        )}
-                         <button
-                            onClick={() => onApprovePayment(student.id, new Date())}
-                             className="flex-1 bg-blue-500 text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-blue-600 transition"
-                         >
-                            Pay Current Month
-                        </button>
-                    </div>
-                </StudentCard>
+                <StudentCard 
+                    key={student.id} 
+                    student={student} 
+                    showPhone={true} 
+                    isAdminView={true}
+                    onCardClick={setSelectedStudent}
+                    onDeactivate={onDeactivateStudent}
+                    onReactivate={onReactivateStudent}
+                    onPermanentDelete={onPermanentDeleteStudent}
+                    onApprovePayment={onApprovePayment}
+                />
             ))}
         </div>
     );
@@ -66,7 +60,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ students, approv
     const renderUnpaid = () => (
          <div className="space-y-4">
             {unpaidStudents.map(student => (
-                <StudentCard key={student.id} student={student} showPhone={true} />
+                <StudentCard 
+                    key={student.id} 
+                    student={student} 
+                    showPhone={true} 
+                    isAdminView={true}
+                    onCardClick={setSelectedStudent}
+                    onDeactivate={onDeactivateStudent}
+                    onReactivate={onReactivateStudent}
+                    onPermanentDelete={onPermanentDeleteStudent}
+                    onApprovePayment={onApprovePayment}
+                />
             ))}
         </div>
     );
@@ -74,7 +78,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ students, approv
     const renderActivity = () => {
         const today = new Date();
         const joinedThisMonth = students.filter(s => isThisMonth(new Date(s.joinDate)));
-        const leftThisMonth = students.filter(s => s.status === 'inactive' && s.leftDate && isThisMonth(new Date(s.leftDate)));
+        const leftThisMonth = students.filter(s => s.status === 'softDeleted' && s.leftDate && isThisMonth(new Date(s.leftDate)));
         const paymentsThisMonth = approvals.filter(a => isThisMonth(new Date(a.date)));
 
         return (
@@ -106,15 +110,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ students, approv
         const dayOfMonth = today.getDate();
         const studentsToRemind = unpaidStudents.filter(s => {
             const joinDay = new Date(s.joinDate).getDate();
-            // Remind if today is 2 days before, 1 day before, or on the due date
             return dayOfMonth >= joinDay - 2 && dayOfMonth <= joinDay;
         });
 
         const handleSendReminder = (student: typeof studentsWithStats[0]) => {
              const msg = encodeURIComponent(
               `Namaste ${student.name},\n` +
-              `B.D Library se yaad dilaya ja raha hai ki aapki library fee ₹${student.feeStats.totalDue} ` +
-              `(${student.feeStats.unpaidMonths} month) pending hai.\n` +
+              `B.D Library se yaad dilaya ja raha hai ki aapki library fee ₹${student.feeStats.totalUnpaidAmount} ` +
+              `(${student.feeStats.unpaidCount} month) pending hai.\n` +
               `Kripya jaldi se payment kare.\n- B.D Library`
             );
             const url = `https://wa.me/91${student.phone}?text=${msg}`;
@@ -140,7 +143,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ students, approv
     };
 
     const tabs: { id: AdminTab, label: string }[] = [
-        { id: 'all', label: `All Students (${students.length})` },
+        { id: 'all', label: `All Students (${studentsWithStats.length})` },
         { id: 'unpaid', label: `Unpaid (${unpaidStudents.length})` },
         { id: 'activity', label: 'Recent Activity' },
         { id: 'reminders', label: 'Reminders' }
@@ -182,6 +185,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ students, approv
                 {tab === 'activity' && renderActivity()}
                 {tab === 'reminders' && renderReminders()}
             </div>
+            
+            {selectedStudent && (
+                 <StudentDetailModal 
+                    student={selectedStudent} 
+                    onClose={() => setSelectedStudent(null)}
+                    isAdmin={true}
+                    onDeactivate={onDeactivateStudent}
+                    onReactivate={onReactivateStudent}
+                    onPermanentDelete={onPermanentDeleteStudent}
+                    onApprovePayment={onApprovePayment}
+                 />
+            )}
         </div>
     );
 };
