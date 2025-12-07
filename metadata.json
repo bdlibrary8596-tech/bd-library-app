@@ -1,0 +1,5 @@
+{
+  "name": "Student Fee Management AI",
+  "description": "An AI-enhanced dashboard for managing student fee payments. Admins can view student statuses, approve payments, and generate payment reminders with Gemini. Students can view their payment history and status.",
+  "requestFramePermissions": []
+}
