@@ -2,7 +2,8 @@
 import React, { useMemo } from 'react';
 import type { Student } from '../types';
 import { Modal } from './Modal';
-import { format, eachMonthOfInterval, startOfMonth, parseISO } from 'date-fns';
+// FIX: The 'startOfMonth' and 'parseISO' functions are not available in the current date-fns version. Removed the imports.
+import { format, eachMonthOfInterval } from 'date-fns';
 import { getStudentFeeStats, normalizePayments } from '../services/feeService';
 
 interface StudentDetailModalProps {
@@ -22,9 +23,12 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
     const paidSet = useMemo(() => new Set(normalizePayments(student.payments).filter(p=>p.status === 'paid').map(p => p.monthKey)), [student.payments]);
 
     const renderMonthList = () => {
-        const start = startOfMonth(parseISO(student.joinDate));
-        const end = student.status === 'softDeleted' && student.exitDate ? startOfMonth(parseISO(student.exitDate)) : new Date();
-        if (end < start) return <p>No payment months in range.</p>;
+        if (!student.joinDate) return <p className="text-gray-500">No join date recorded.</p>;
+        // FIX: Replaced 'parseISO' with 'new Date()' and 'startOfMonth' with an inline implementation.
+        const start = new Date(new Date(student.joinDate).getFullYear(), new Date(student.joinDate).getMonth(), 1);
+        // FIX: Replaced 'parseISO' with 'new Date()' and 'startOfMonth' with an inline implementation.
+        const end = student.status === 'softDeleted' && student.exitDate ? new Date(new Date(student.exitDate).getFullYear(), new Date(student.exitDate).getMonth(), 1) : new Date();
+        if (end < start) return <p className="text-gray-500">No payment months in range.</p>;
         
         const months = eachMonthOfInterval({ start, end }).reverse();
 
@@ -55,7 +59,8 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
                 <div className="grid grid-cols-2 gap-4 text-center text-sm">
                     <div>
                         <p className="font-semibold text-gray-500">Joined Date</p>
-                        <p>{format(parseISO(student.joinDate), 'MMM d, yyyy')}</p>
+                        {/* FIX: Replaced 'parseISO' with 'new Date()' to parse the ISO date string. */}
+                        <p>{format(new Date(student.joinDate), 'MMM d, yyyy')}</p>
                     </div>
                      <div>
                         <p className="font-semibold text-gray-500">Status</p>
@@ -67,4 +72,27 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
                     </div>
                     <div>
                         <p className="font-semibold text-gray-500">Total Due</p>
-                        <p className={feeStats.totalUnpaidAmount > <strong>Please include the following files in your request: `components/Auth.tsx`.</strong>
+                        <p className={feeStats.totalUnpaidAmount > 0 ? "text-red-500 font-bold" : ""}>₹{feeStats.totalUnpaidAmount}</p>
+                    </div>
+                </div>
+                <div>
+                    <h4 className="font-bold text-md mb-2">Payment History</h4>
+                    {renderMonthList()}
+                </div>
+                 {isAdmin && (
+                    <div className="flex flex-wrap justify-center gap-2 pt-4 border-t">
+                         {student.status === 'softDeleted' ? (
+                            <button onClick={() => onReactivate?.(student.id)} className="bg-green-500 text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-green-600">Reactivate</button>
+                        ) : (
+                            <button onClick={() => window.confirm('Deactivate this student? They will be blocked from login.') && onDeactivate?.(student.id)} className="bg-yellow-500 text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-600">Deactivate</button>
+                        )}
+                        <button onClick={() => window.confirm('Are you sure you want to permanently delete this student? This action cannot be undone.') && onPermanentDelete?.(student.id)} className="bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-red-700">Delete Permanently</button>
+                        {feeStats.unpaidCount > 0 && student.status !== 'softDeleted' && (
+                            <button onClick={() => onMarkCurrentMonthAsPaid?.(student.id)} className="bg-blue-500 text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-blue-600">Pay Current Month</button>
+                        )}
+                    </div>
+                )}
+            </div>
+        </Modal>
+    );
+};

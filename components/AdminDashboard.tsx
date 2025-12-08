@@ -5,6 +5,7 @@ import { StudentCard } from './StudentCard';
 import { StudentDetailModal } from './StudentDetailModal';
 import { format, isThisMonth } from 'date-fns';
 import { getStudentFeeStats } from '../services/feeService';
+import { AdminStoreManager } from './AdminStoreManager';
 
 interface AdminDashboardProps {
     students: Student[];
@@ -16,7 +17,7 @@ interface AdminDashboardProps {
     onReactivateStudent: (studentId: string) => void;
 }
 
-type AdminTab = 'all' | 'unpaid' | 'activity' | 'reminders';
+type AdminTab = 'all' | 'unpaid' | 'activity' | 'reminders' | 'store';
 
 const StatCard: React.FC<{ title: string; value: string | number; color: string }> = ({ title, value, color }) => (
     <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md text-center">
@@ -130,7 +131,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         { id: 'all', label: `All Students (${students.length})` },
         { id: 'unpaid', label: `Unpaid (${unpaidStudents.length})` },
         { id: 'activity', label: 'Recent Activity' },
-        { id: 'reminders', label: 'Reminders' }
+        { id: 'reminders', label: 'Reminders' },
+        { id: 'store', label: 'Store Manager' }
     ];
 
     return (
@@ -161,6 +163,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 {tab === 'unpaid' && renderStudentsList(unpaidStudents)}
                 {tab === 'activity' && renderActivity()}
                 {tab === 'reminders' && renderReminders()}
+                {tab === 'store' && <AdminStoreManager />}
             </div>
             {selectedStudent && (
                  <StudentDetailModal 

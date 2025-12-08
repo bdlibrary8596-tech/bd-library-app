@@ -17,15 +17,16 @@ export interface Student {
   payments: PaymentInfo[];
   monthlyFee: number;
   role: 'student' | 'admin';
-  
-  // New/Updated fields for detailed status tracking
   status: 'active' | 'inactive' | 'softDeleted' | 'deleted';
   canLogin: boolean;
-  softDeleted: boolean; // For easier Firestore querying
+  softDeleted: boolean;
   reactiveAllowed: boolean;
-  dueDay: number; // Day of the month fee is due
-  exitDate?: string | null; // ISO Date string
-  lastRejoinDate?: string; // ISO Date string
+  dueDay: number;
+  exitDate?: string | null;
+  lastRejoinDate?: string | null;
+  // New fields for chat
+  lastActive?: string; // ISO Date string
+  blockedUserIds?: string[];
 }
 
 export type NewStudent = Omit<Student, 
@@ -39,7 +40,9 @@ export type NewStudent = Omit<Student,
   'reactiveAllowed' |
   'dueDay' |
   'exitDate' |
-  'lastRejoinDate'
+  'lastRejoinDate' |
+  'lastActive' |
+  'blockedUserIds'
 > & { 
   name: string; 
   phone: string; 
@@ -54,4 +57,47 @@ export interface Approval {
   studentName: string;
   amount: number;
   date: string; // YYYY-MM-DD
+}
+
+// --- NEW TYPES FOR NEW FEATURES ---
+
+export interface StoreItem {
+    id: string;
+    title: string;
+    description: string;
+    price: number;
+    category: "notes" | "test-series" | "bundle" | "stationery";
+    imageUrl: string;
+    isActive: boolean;
+    createdAt: string; // ISO Date string
+    updatedAt: string; // ISO Date string
+}
+
+export interface Chat {
+    id: string; // combination of participant IDs
+    participants: string[];
+    participantDetails: {
+        [key: string]: { name: string; photoUrl: string; }
+    };
+    lastMessage?: { text: string; senderId: string; timestamp: string; };
+    updatedAt: string; // ISO Date string
+}
+
+export interface Message {
+    id: string;
+    chatId: string;
+    senderId: string;
+    text: string;
+    createdAt: string; // ISO Date string
+    seenBy: string[];
+}
+
+export interface GameSession {
+    id: string; // same as chatId
+    players: { [key: string]: 'X' | 'O' }; // map studentId to symbol
+    board: ('X' | 'O' | '')[];
+    currentTurn: string; // studentId
+    status: 'in-progress' | 'finished';
+    winnerId?: string | null; // can be 'draw'
+    updatedAt: string; // ISO Date string
 }

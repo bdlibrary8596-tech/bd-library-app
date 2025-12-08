@@ -28,12 +28,14 @@ export function getStudentFeeStats(student: Student) {
         return { unpaidCount: 0, totalUnpaidAmount: 0, unpaidList: [], lastPaidMonth: null, nextDueDate: null };
     }
 
-    const start = dateFns.startOfMonth(new Date(joinDate));
+    // FIX: Replaced 'dateFns.startOfMonth' with an inline implementation as it's not available.
+    const start = new Date(new Date(joinDate).getFullYear(), new Date(joinDate).getMonth(), 1);
     const now = new Date();
     
+    // FIX: Replaced 'dateFns.startOfMonth' with an inline implementation as it's not available.
     const end = (status === 'inactive' || status === 'softDeleted') && exitDate
-        ? dateFns.startOfMonth(new Date(exitDate))
-        : dateFns.startOfMonth(now);
+        ? new Date(new Date(exitDate).getFullYear(), new Date(exitDate).getMonth(), 1)
+        : new Date(now.getFullYear(), now.getMonth(), 1);
 
     const paidSet = new Set(
         paymentsArray.filter(p => p.status === 'paid').map(p => p.monthKey)

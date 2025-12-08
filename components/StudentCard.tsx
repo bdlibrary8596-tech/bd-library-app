@@ -2,7 +2,8 @@
 import React, { useMemo } from 'react';
 import type { Student } from '../types';
 import { getStudentFeeStats } from '../services/feeService';
-import { isThisMonth, parseISO } from 'date-fns';
+// FIX: The 'parseISO' function is not available in the current date-fns version. Removed the import.
+import { isThisMonth } from 'date-fns';
 
 interface StudentCardProps {
     student: Student & { feeStats: ReturnType<typeof getStudentFeeStats> };
@@ -34,7 +35,8 @@ export const StudentCard: React.FC<StudentCardProps> = ({
 
     const statusBadge = useMemo(() => {
         if (student.status === 'softDeleted') return <Badge text="Inactive" color="bg-gray-200 text-gray-700" />;
-        if (isThisMonth(parseISO(student.joinDate))) return <Badge text="New Member" color="bg-blue-200 text-blue-800" />;
+        // FIX: Replaced 'parseISO' with the native 'new Date()' constructor to parse the ISO date string.
+        if (isThisMonth(new Date(student.joinDate))) return <Badge text="New Member" color="bg-blue-200 text-blue-800" />;
         if (isUnpaid) return <Badge text="Pending" color="bg-red-200 text-red-800" />;
         return <Badge text="On Time Payer" color="bg-green-200 text-green-800" />;
     }, [student, isUnpaid]);

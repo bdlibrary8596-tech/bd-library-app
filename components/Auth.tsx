@@ -41,7 +41,6 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             } else {
                  setError("An error occurred during login. Please try again.");
             }
-            console.error("Error during student login:", err);
         } finally {
             setIsLoading(false);
         }
@@ -51,8 +50,6 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         e.preventDefault();
         setError('');
         if (adminPassword === ADMIN_PASSWORD) {
-            // FIX: Corrected admin user object to match the Student type.
-            // Removed `lastPaymentDate` and added missing required properties to prevent type errors.
             const adminUser: Student = { 
                 id: 'admin01', 
                 name: 'Admin', 
@@ -74,56 +71,95 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         }
     };
     
-    const renderSelection = () => (
-        <div className="text-center">
-            <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-200">Select Your Role</h2>
-            <div className="space-y-4">
-                 <button onClick={() => setView('student')} className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors text-lg">
-                    Student Login
-                </button>
-                <button onClick={() => setView('admin')} className="w-full bg-gray-600 text-white py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors text-lg">
-                    Admin Login
-                </button>
-            </div>
-        </div>
-    );
+    const renderContent = () => {
+        if (view === 'student') {
+            return (
+                <form onSubmit={handleStudentSubmit} className="space-y-4 animate-fade-in">
+                    <h2 className="text-2xl font-bold text-center text-white">Student Login</h2>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-200">Registered Phone Number</label>
+                        <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Enter your phone number" required className="mt-1 block w-full px-3 py-2 bg-white/20 border border-white/30 rounded-md shadow-sm text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-white" />
+                    </div>
+                    {error && <p className="text-red-300 text-sm text-center">{error}</p>}
+                    <button type="submit" disabled={isLoading} className="w-full bg-violet-600 text-white py-2 rounded-lg font-semibold hover:bg-violet-700 disabled:bg-violet-400 disabled:cursor-not-allowed transition">
+                        {isLoading ? 'Verifying...' : 'Login'}
+                    </button>
+                    <button type="button" onClick={() => { setView('select'); setError(''); }} className="w-full text-center text-sm text-gray-300 hover:underline mt-2">Back</button>
+                </form>
+            );
+        }
 
-    const renderStudentForm = () => (
-        <form onSubmit={handleStudentSubmit} className="space-y-4">
-             <h2 className="text-2xl font-bold text-center text-gray-800 dark:text-gray-200">Student Login</h2>
-            <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Registered Phone Number</label>
-                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Enter your phone number to login" required className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm" />
-            </div>
-            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-            <button type="submit" disabled={isLoading} className="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed">
-                {isLoading ? 'Verifying...' : 'Login'}
-            </button>
-            <button type="button" onClick={() => { setView('select'); setError(''); }} className="w-full text-center text-sm text-gray-500 dark:text-gray-400 hover:underline mt-2">Back to role selection</button>
-        </form>
-    );
+        if (view === 'admin') {
+            return (
+                <form onSubmit={handleAdminSubmit} className="space-y-4 animate-fade-in">
+                    <h2 className="text-2xl font-bold text-center text-white">Admin Login</h2>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-200">Admin Password</label>
+                        <input type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} required className="mt-1 block w-full px-3 py-2 bg-white/20 border border-white/30 rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-white" />
+                    </div>
+                    {error && <p className="text-red-300 text-sm text-center">{error}</p>}
+                    <button type="submit" className="w-full bg-gray-700 text-white py-2 rounded-lg font-semibold hover:bg-gray-800 transition">Login</button>
+                    <button type="button" onClick={() => { setView('select'); setError(''); }} className="w-full text-center text-sm text-gray-300 hover:underline mt-2">Back</button>
+                </form>
+            );
+        }
 
-     const renderAdminForm = () => (
-        <form onSubmit={handleAdminSubmit} className="space-y-4">
-             <h2 className="text-2xl font-bold text-center text-gray-800 dark:text-gray-200">Admin Login</h2>
-            <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Admin Password</label>
-                <input type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} required className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm" />
+        // Default to 'select' view
+        return (
+             <div className="text-center animate-fade-in">
+                <h1 className="text-4xl font-bold text-white drop-shadow-lg">B.D Library</h1>
+                <p className="mt-2 text-gray-200">Smart Fee & Library Management for Students</p>
+                <div className="space-y-4 mt-8">
+                    <button onClick={() => setView('student')} className="w-full bg-violet-600 text-white py-3 rounded-lg font-semibold hover:bg-violet-700 transition-transform hover:scale-105 text-lg">
+                        Student Login
+                    </button>
+                    <button onClick={() => setView('admin')} className="w-full bg-gray-700 text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition-transform hover:scale-105 text-lg">
+                        Admin Login
+                    </button>
+                </div>
+                <p className="mt-6 text-xs text-gray-300/80">
+                    Tip: Add this app to your home screen for faster access.
+                </p>
             </div>
-            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-            <button type="submit" className="w-full bg-gray-600 text-white py-2 rounded-lg font-semibold hover:bg-gray-700">Login</button>
-            <button type="button" onClick={() => { setView('select'); setError(''); }} className="w-full text-center text-sm text-gray-500 dark:text-gray-400 hover:underline mt-2">Back to role selection</button>
-        </form>
-    );
+        );
+    };
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
-             <div className="w-full max-w-md">
-                 <h1 className="text-4xl font-bold text-center mb-8 text-indigo-600 dark:text-indigo-400">Welcome to B.D Library</h1>
-                <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-2xl">
-                    {view === 'select' && renderSelection()}
-                    {view === 'student' && renderStudentForm()}
-                    {view === 'admin' && renderAdminForm()}
+        <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-blue-600 via-indigo-700 to-indigo-800 p-4 overflow-hidden relative">
+            <style>{`
+                @keyframes scroll-books {
+                    0% { transform: translateX(0); }
+                    100% { transform: translateX(-50%); }
+                }
+                .animate-scroll-books {
+                    animation: scroll-books 40s linear infinite;
+                }
+                @keyframes fade-in {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .animate-fade-in {
+                    animation: fade-in 0.5s ease-out forwards;
+                }
+            `}</style>
+            
+            <div className="absolute top-0 left-0 w-full h-10 bg-black/20 overflow-hidden">
+                <div className="w-[200%] h-full flex items-center animate-scroll-books">
+                    <p className="text-2xl whitespace-nowrap text-white/50">
+                        {'📚 📖 🖋️ '.repeat(50)}
+                    </p>
+                </div>
+            </div>
+
+            <div className="w-full max-w-md bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-white/20">
+                {renderContent()}
+            </div>
+            
+            <div className="absolute bottom-0 left-0 w-full h-10 bg-black/20 overflow-hidden">
+                <div className="w-[200%] h-full flex items-center animate-scroll-books" style={{ animationDirection: 'reverse' }}>
+                     <p className="text-2xl whitespace-nowrap text-white/50">
+                        {'🎓 ✨ 💡 '.repeat(50)}
+                    </p>
                 </div>
             </div>
         </div>

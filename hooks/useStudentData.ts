@@ -107,8 +107,9 @@ export const useStudentData = () => {
 
   const deactivateStudent = async (studentId: string) => {
     const studentRef = doc(db, 'students', studentId);
+    // FIX: Add 'as const' to ensure TypeScript infers the literal type for 'status', not 'string'.
     const updates = {
-      status: 'softDeleted',
+      status: 'softDeleted' as const,
       canLogin: false,
       softDeleted: true,
       exitDate: new Date().toISOString(),
@@ -123,8 +124,9 @@ export const useStudentData = () => {
 
   const reactivateStudent = async (studentId: string) => {
     const studentRef = doc(db, 'students', studentId);
+    // FIX: Add 'as const' to ensure TypeScript infers the literal type for 'status', not 'string'.
     const updates = {
-      status: 'active',
+      status: 'active' as const,
       canLogin: true,
       softDeleted: false,
       exitDate: null,
