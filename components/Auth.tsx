@@ -1,11 +1,9 @@
-
 import React, { useState } from 'react';
 import type { Student } from '../types';
 import { getStudentByPhone } from '../services/studentService';
 
 interface AuthProps {
     onLogin: (role: 'admin' | 'student', user: Student) => void;
-    students: Student[];
 }
 
 const ADMIN_PASSWORD = 'BD1145';
@@ -53,6 +51,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         e.preventDefault();
         setError('');
         if (adminPassword === ADMIN_PASSWORD) {
+            // FIX: Corrected admin user object to match the Student type.
+            // Removed `lastPaymentDate` and added missing required properties to prevent type errors.
             const adminUser: Student = { 
                 id: 'admin01', 
                 name: 'Admin', 
@@ -60,11 +60,13 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                 canLogin: true,
                 status: 'active',
                 phone: '',
-                joinDate: '',
+                joinDate: new Date().toISOString(),
                 photoUrl: '',
                 payments: [],
-                lastPaymentDate: null,
                 monthlyFee: 0,
+                softDeleted: false,
+                reactiveAllowed: false,
+                dueDay: 1,
             };
             onLogin('admin', adminUser);
         } else {

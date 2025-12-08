@@ -1,6 +1,9 @@
+
 export interface PaymentInfo {
-  month: number; // 1-12
-  year: number;
+  monthKey: string; // "YYYY-MM"
+  amount: number;
+  status: "paid" | "unpaid";
+  paidOn?: string | null; // ISO Date string
 }
 
 export interface Student {
@@ -9,24 +12,40 @@ export interface Student {
   phone: string;
   fatherName?: string;
   address?: string;
-  joinDate: string; // YYYY-MM-DD
+  joinDate: string; // ISO Date string
   photoUrl: string;
   payments: PaymentInfo[];
-  lastPaymentDate: string | null; // YYYY-MM-DD - This can be deprecated or kept for quick reference
   monthlyFee: number;
   role: 'student' | 'admin';
   
-  // New fields
+  // New/Updated fields for detailed status tracking
   status: 'active' | 'inactive' | 'softDeleted' | 'deleted';
-  leftDate?: string | null; // YYYY-MM-DD
-  lastRejoinDate?: string; // YYYY-MM-DD
   canLogin: boolean;
-  // FIX: Add optional softDeleted property to align with Firestore data model and fix type error.
-  softDeleted?: boolean;
+  softDeleted: boolean; // For easier Firestore querying
+  reactiveAllowed: boolean;
+  dueDay: number; // Day of the month fee is due
+  exitDate?: string | null; // ISO Date string
+  lastRejoinDate?: string; // ISO Date string
 }
 
-// FIX: Cleaned up Omit<> by removing deprecated 'isUnpaid' property and adding 'softDeleted'.
-export type NewStudent = Omit<Student, 'id' | 'payments' | 'lastPaymentDate' | 'photoUrl' | 'role' | 'status' | 'leftDate' | 'lastRejoinDate' | 'canLogin' | 'softDeleted'> & { name: string; phone: string; monthlyFee: number; joinDate: string; };
+export type NewStudent = Omit<Student, 
+  'id' | 
+  'photoUrl' | 
+  'payments' | 
+  'role' | 
+  'status' | 
+  'canLogin' | 
+  'softDeleted' |
+  'reactiveAllowed' |
+  'dueDay' |
+  'exitDate' |
+  'lastRejoinDate'
+> & { 
+  name: string; 
+  phone: string; 
+  monthlyFee: number; 
+  joinDate: string; 
+};
 
 export interface Approval {
   id: string;

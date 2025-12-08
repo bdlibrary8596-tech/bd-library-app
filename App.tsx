@@ -19,7 +19,7 @@ const App: React.FC = () => {
         students, 
         approvals, 
         addStudent, 
-        approvePayment, 
+        markCurrentMonthAsPaid, 
         permanentDeleteStudent, 
         updateStudentProfile, 
         deactivateStudent, 
@@ -49,29 +49,21 @@ const App: React.FC = () => {
     if (error) {
         return <div className="flex items-center justify-center h-screen text-red-500">{error}</div>;
     }
-
-    const handleAddStudent = (studentData: NewStudent) => {
-        addStudent(studentData);
-        setAddStudentModalOpen(false);
-    };
     
     if (!userRole || !currentUser) {
-        return <Auth onLogin={handleLogin} students={students} />;
+        return <Auth onLogin={handleLogin} />;
     }
 
     return (
-        <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans">
+        <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
             <header className="bg-white dark:bg-gray-800 shadow-md">
                 <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         <h1 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">B.D Library</h1>
                         <div className="flex items-center space-x-4">
-                             <span className="text-gray-700 dark:text-gray-300">Welcome, <span className="font-semibold">{currentUser.name}</span></span>
-                            <button
-                                onClick={handleLogout}
-                                className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-colors"
-                            >
-                                <LogoutIcon /> Logout
+                             <span className="hidden sm:inline">Welcome, <span className="font-semibold">{currentUser.name}</span></span>
+                            <button onClick={handleLogout} className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium bg-red-500 text-white hover:bg-red-600">
+                                <LogoutIcon /> <span className="hidden sm:inline">Logout</span>
                             </button>
                         </div>
                     </div>
@@ -83,7 +75,7 @@ const App: React.FC = () => {
                     <AdminDashboard
                         students={students}
                         approvals={approvals}
-                        onApprovePayment={approvePayment}
+                        onMarkCurrentMonthAsPaid={markCurrentMonthAsPaid}
                         onPermanentDeleteStudent={permanentDeleteStudent}
                         onAddStudentClick={() => setAddStudentModalOpen(true)}
                         onDeactivateStudent={deactivateStudent}
@@ -99,7 +91,7 @@ const App: React.FC = () => {
             </main>
 
             <Modal isOpen={isAddStudentModalOpen} onClose={() => setAddStudentModalOpen(false)} title="Add New Student">
-                <AddStudentForm onSubmit={handleAddStudent} onCancel={() => setAddStudentModalOpen(false)} />
+                <AddStudentForm onSubmit={(data) => { addStudent(data); setAddStudentModalOpen(false); }} onCancel={() => setAddStudentModalOpen(false)} />
             </Modal>
         </div>
     );
